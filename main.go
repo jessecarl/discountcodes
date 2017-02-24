@@ -16,8 +16,6 @@ func main() {
 	flag.Parse()
 
 	codes := []code{}
-	head := make(chan code)
-	tail := make(chan code)
 	gen := make(chan code)
 	quit := make(chan struct{})
 	go (func() {
@@ -31,31 +29,16 @@ func main() {
 		}
 	})()
 
-	var n code
+	var next chan code = gen
 	for {
-		var source chan code
-		if len(codes) < int(*count) {
-			source = gen
-		} else {
-			close(head)
-			close(quit)
+		m := <-next
+		codes = append(codes, m)
+		if len(codes) == int(*count) {
 			break
 		}
-		select {
-		case n = <-source:
-			if len(codes) == 0 {
-				codes = append(codes, n)
-				go n.noDuplicates(head, tail)
-				n = nil
-			}
-		case m := <-tail:
-			codes = append(codes, m)
-			ch := make(chan code)
-			go m.noDuplicates(tail, ch)
-			tail = ch
-		case head <- n:
-		}
+		next = m.noDuplicates(next)
 	}
+	close(quit)
 
 	var output bytes.Buffer
 	for i := 0; i < int(*page); i++ {
@@ -99,13 +82,17 @@ func (c code) equals(d code) bool {
 	return true
 }
 
-func (c code) noDuplicates(in, out chan code) {
-	for n := range in {
-		if !c.equals(n) {
-			out <- n
+func (c code) noDuplicates(in chan code) chan code {
+	out := make(chan code)
+	go func() {
+		defer close(out)
+		for n := range in {
+			if !c.equals(n) {
+				out <- n
+			}
 		}
-	}
-	close(out)
+	}()
+	return out
 }
 
 func (c code) String() string {
