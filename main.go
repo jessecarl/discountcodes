@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"flag"
 	"fmt"
@@ -55,18 +56,21 @@ func main() {
 		case head <- n:
 		}
 	}
+
+	var output bytes.Buffer
 	for i := 0; i < int(*page); i++ {
-		fmt.Print("Discount Code ", i+1, ",")
+		fmt.Fprint(&output, "Discount Code ", i+1, ",")
 	}
-	fmt.Print("\n")
+	fmt.Fprint(&output, "\n")
 	for i, c := range codes {
-		fmt.Print(c)
+		fmt.Fprint(&output, c)
 		if (i+1)%int(*page) != 0 {
-			fmt.Print(",")
+			fmt.Fprint(&output, ",")
 		} else {
-			fmt.Print("\n")
+			fmt.Fprint(&output, "\n")
 		}
 	}
+	fmt.Print(output.String())
 }
 
 type code []int
